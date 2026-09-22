@@ -1,3 +1,4 @@
+using CityYouth.Application.Abstractions;
 using CityYouth.Domain.Entities;
 using MediatR;
 
