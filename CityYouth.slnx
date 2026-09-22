@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CityYouth.Api/CityYouth.Api.csproj" />
+    <Project Path="src/CityYouth.Application/CityYouth.Application.csproj" />
+    <Project Path="src/CityYouth.Domain/CityYouth.Domain.csproj" />
+    <Project Path="src/CityYouth.Infrastructure/CityYouth.Infrastructure.csproj" />
+  </Folder>
+</Solution>

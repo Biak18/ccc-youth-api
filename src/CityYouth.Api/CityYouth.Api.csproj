@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Reuses the existing user-secrets store, so previously saved
+         Supabase:Url / ServiceKey / Jwt:Key values keep working. -->
+    <UserSecretsId>e4a8e6d9-b173-47e2-8384-39aeb424c1ec</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CityYouth.Application\CityYouth.Application.csproj" />
+    <ProjectReference Include="..\CityYouth.Infrastructure\CityYouth.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
