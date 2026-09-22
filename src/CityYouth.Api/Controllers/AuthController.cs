@@ -1,5 +1,6 @@
 using CityYouth.Application.Features.Auth.GetMe;
 using CityYouth.Application.Features.Auth.Login;
+using CityYouth.Application.Features.Auth.Refresh;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +18,18 @@ public class AuthController(ISender sender) : ControllerBase
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login(LoginCommand command, CancellationToken ct)
+    {
+        var result = await sender.Send(command, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Rotate an expired session. Returns a new access token AND a new
+    /// refresh token — replace both stored values.
+    /// </summary>
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Refresh(RefreshCommand command, CancellationToken ct)
     {
         var result = await sender.Send(command, ct);
         return Ok(result);

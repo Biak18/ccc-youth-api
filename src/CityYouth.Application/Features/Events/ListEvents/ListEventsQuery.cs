@@ -24,6 +24,7 @@ public sealed class ListEventsHandler(ISupabaseGateway db)
         {
             "past" => $"select=*&status=eq.published&start_date=lt.{now}&order=start_date.desc",
             "all" => "select=*&status=eq.published&order=start_date.desc",
+            "any" => "select=*&order=start_date.desc",
             _ => $"select=*&status=eq.published&start_date=gte.{now}&order=start_date.asc",
         };
         return db.ListAsync<YouthEvent>("events", $"{query}&limit={q.Limit}", ct: ct);

@@ -27,10 +27,15 @@ public sealed class ListActivitiesHandler(ISupabaseGateway db)
 {
     public Task<List<Activity>> Handle(ListActivitiesQuery q, CancellationToken ct)
     {
-        var status = q.Status == "all"
-            ? "in.(published,archived)"
-            : "eq.published";
-        var query = $"select=*&status={status}&order=activity_date.desc" +
+        // published (current site) · all (published + archived, Memories) ·
+        // any (everything incl. drafts — dashboard only, behind auth).
+        var status = q.Status switch
+        {
+            "all" => "&status=in.(published,archived)",
+            "any" => string.Empty,
+            _ => "&status=eq.published",
+        };
+        var query = $"select=*&order=activity_date.desc{status}" +
                     $"&limit={q.Limit}&offset={q.Offset}";
         if (q.Year is { } y)
             query += $"&activity_date=gte.{y}-01-01&activity_date=lt.{y + 1}-01-01";

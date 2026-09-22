@@ -15,8 +15,9 @@ public class AnnouncementsController(ISender sender) : ControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> List(
-        [FromQuery] int limit = 20, CancellationToken ct = default) =>
-        Ok(await sender.Send(new ListAnnouncementsQuery(limit), ct));
+        [FromQuery] int limit = 20, [FromQuery] string status = "published",
+        CancellationToken ct = default) =>
+        Ok(await sender.Send(new ListAnnouncementsQuery(limit, status), ct));
 
     [HttpPost]
     [Authorize]

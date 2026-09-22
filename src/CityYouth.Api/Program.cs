@@ -62,7 +62,11 @@ builder.Services
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CityYouth.Application.Abstractions.ICurrentUser, CurrentUser>();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    // The React site's types mirror Supabase snake_case columns, so the API
+    // speaks snake_case too — the frontend rewires with zero type churn.
+    .AddJsonOptions(o => o.JsonSerializerOptions.PropertyNamingPolicy =
+        System.Text.Json.JsonNamingPolicy.SnakeCaseLower);
 
 builder.Services.AddCors(o => o.AddPolicy("web", p => p
     .WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()

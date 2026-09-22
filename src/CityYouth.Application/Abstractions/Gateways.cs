@@ -11,11 +11,13 @@ public interface ISupabaseGateway
 {
     Task<List<T>> ListAsync<T>(string table, string query, string? userJwt = null, CancellationToken ct = default);
     Task<T?> SingleAsync<T>(string table, string query, string? userJwt = null, CancellationToken ct = default) where T : class;
+    Task<long> CountAsync(string table, string query, CancellationToken ct = default);
     Task<T> InsertAsync<T>(string table, object payload, CancellationToken ct = default) where T : class;
     Task UpdateAsync(string table, string idColumn, string id, object payload, CancellationToken ct = default);
     Task DeleteAsync(string table, string idColumn, string id, CancellationToken ct = default);
     Task<string> UploadAsync(string bucket, string folder, string fileName, byte[] bytes, string contentType, CancellationToken ct = default);
     Task<JsonElement> LoginAsync(string email, string password, CancellationToken ct = default);
+    Task<JsonElement> RefreshAsync(string refreshToken, CancellationToken ct = default);
     Task<string?> GetUserRoleAsync(string userId, CancellationToken ct = default);
 }
 

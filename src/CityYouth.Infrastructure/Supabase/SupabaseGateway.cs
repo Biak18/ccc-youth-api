@@ -1,9 +1,9 @@
+using CityYouth.Application.Abstractions;
+using Microsoft.Extensions.Configuration;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using CityYouth.Application.Abstractions;
-using Microsoft.Extensions.Configuration;
 
 namespace CityYouth.Infrastructure.Supabase;
 
@@ -70,7 +70,8 @@ public sealed class SupabaseGateway(IHttpClientFactory http, IConfiguration conf
     }
 
     public async Task<T?> SingleAsync<T>(string table, string query, string? userJwt = null, CancellationToken ct = default) where T : class
-    {        using var request = Rest(HttpMethod.Get, $"rest/v1/{table}?{query}", AnonKey, userJwt, single: true);
+    {
+        using var request = Rest(HttpMethod.Get, $"rest/v1/{table}?{query}", AnonKey, userJwt, single: true);
         try
         {
             return await SendAsync(request,
@@ -108,6 +109,55 @@ public sealed class SupabaseGateway(IHttpClientFactory http, IConfiguration conf
         await SendAsync(request, _ => true, ct);
     }
 
+    public async Task<long> CountAsync(string table, string query, CancellationToken ct = default)
+    {
+        var client = http.CreateClient("supabase");
+        try
+        {
+            var extra = query.Length > 0 ? $"&{query}" : string.Empty;
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"{Url}/rest/v1/{table}?select=id&limit=0{extra}");
+            request.Headers.Add("apikey", ServiceKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ServiceKey);
+            request.Headers.Add("Prefer", "count=exact");
+            using var response = await client.SendAsync(request, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode)
+                throw new SupabaseException((int)response.StatusCode, body);
+            // Content-Range: */42
+            return response.Content.Headers.ContentRange?.Length ?? 0;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new SupabaseUnreachableException(ex.Message, ex);
+        }
+    }
+
+    public async Task<JsonElement> RefreshAsync(string refreshToken, CancellationToken ct = default)
+    {
+        var client = http.CreateClient("supabase");
+        try
+        {
+            using var content = new StringContent(
+                JsonSerializer.Serialize(new { refresh_token = refreshToken }, Json),
+                Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post, $"{Url}/auth/v1/token?grant_type=refresh_token")
+            {
+                Content = content,
+            };
+            request.Headers.Add("apikey", AnonKey);
+            using var response = await client.SendAsync(request, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode)
+                throw new SupabaseException((int)response.StatusCode, body);
+            return JsonDocument.Parse(body).RootElement.Clone();
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new SupabaseUnreachableException(ex.Message, ex);
+        }
+    }
     public async Task<string> UploadAsync(
         string bucket, string folder, string fileName, byte[] bytes, string contentType,
         CancellationToken ct = default)
