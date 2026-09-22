@@ -6,11 +6,13 @@ using CityYouth.Application.Features.Users.ManageProfiles;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CityYouth.Api.Controllers;
 
 [Route("api/settings")]
 [ApiController]
+[EnableRateLimiting("api")]
 public class SettingsController(ISender sender) : ControllerBase
 {
     [HttpGet]
@@ -27,6 +29,7 @@ public class SettingsController(ISender sender) : ControllerBase
 
 [Route("api/categories")]
 [ApiController]
+[EnableRateLimiting("api")]
 public class CategoriesController(ISender sender) : ControllerBase
 {
     [HttpGet]
@@ -37,6 +40,7 @@ public class CategoriesController(ISender sender) : ControllerBase
 
 [Route("api/uploads")]
 [ApiController]
+[EnableRateLimiting("api")]
 public class UploadsController(ISender sender) : ControllerBase
 {
     [HttpPost]
@@ -59,6 +63,7 @@ public class UploadsController(ISender sender) : ControllerBase
 
 [Route("api/users")]
 [ApiController]
+[EnableRateLimiting("api")]
 [Authorize(Policy = "Admin")]
 public class UsersController(ISender sender) : ControllerBase
 {
@@ -74,6 +79,7 @@ public class UsersController(ISender sender) : ControllerBase
 
 [Route("api/health")]
 [ApiController]
+[EnableRateLimiting("api")]
 public class HealthController(ISender sender) : ControllerBase
 {
     [HttpGet]

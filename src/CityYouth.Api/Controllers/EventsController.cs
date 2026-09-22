@@ -3,11 +3,13 @@ using CityYouth.Application.Features.Events.ManageEvents;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CityYouth.Api.Controllers;
 
 [Route("api/events")]
 [ApiController]
+[EnableRateLimiting("api")]
 public class EventsController(ISender sender) : ControllerBase
 {
     [HttpGet]

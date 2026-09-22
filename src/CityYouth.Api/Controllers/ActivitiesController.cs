@@ -5,11 +5,13 @@ using CityYouth.Application.Features.Activities.UpdateActivity;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CityYouth.Api.Controllers;
 
 [Route("api/activities")]
 [ApiController]
+[EnableRateLimiting("api")]
 public class ActivitiesController(ISender sender) : ControllerBase
 {
     [HttpGet]

@@ -3,11 +3,13 @@ using CityYouth.Application.Features.Announcements.ManageAnnouncements;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CityYouth.Api.Controllers;
 
 [Route("api/announcements")]
 [ApiController]
+[EnableRateLimiting("api")]
 public class AnnouncementsController(ISender sender) : ControllerBase
 {
     [HttpGet]

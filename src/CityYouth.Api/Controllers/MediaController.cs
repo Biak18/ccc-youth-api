@@ -3,11 +3,13 @@ using CityYouth.Application.Features.Media.ListMedia;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CityYouth.Api.Controllers;
 
 [Route("api/media")]
 [ApiController]
+[EnableRateLimiting("api")]
 public class MediaController(ISender sender) : ControllerBase
 {
     [HttpGet]

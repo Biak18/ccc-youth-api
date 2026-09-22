@@ -3,16 +3,19 @@ using CityYouth.Application.Features.Auth.Login;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CityYouth.Api.Controllers;
 
 [Route("api/auth")]
 [ApiController]
+[EnableRateLimiting("api")]
 public class AuthController(ISender sender) : ControllerBase
 {
     /// <summary>Exchange email + password for a Supabase access token.</summary>
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login(LoginCommand command, CancellationToken ct)
     {
         var result = await sender.Send(command, ct);

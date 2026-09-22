@@ -3,11 +3,13 @@ using CityYouth.Application.Features.Leaders.ManageLeaders;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CityYouth.Api.Controllers;
 
 [Route("api/leaders")]
 [ApiController]
+[EnableRateLimiting("api")]
 public class LeadersController(ISender sender) : ControllerBase
 {
     [HttpGet]

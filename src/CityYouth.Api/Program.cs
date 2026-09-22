@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using CityYouth.Api.Authorization;
 using CityYouth.Api.Middleware;
 using CityYouth.Api.Services;
@@ -94,6 +95,33 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+
+    options.AddPolicy("api", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.IsAuthenticated == true
+                ? httpContext.User.FindFirst("sub")?.Value ?? "authenticated"
+                : httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+});
+
 var app = builder.Build();
 
 if (!app.Environment.IsProduction())
@@ -104,6 +132,9 @@ if (!app.Environment.IsProduction())
 
 app.UseCors("web");
 app.UseAuthentication();
+
+app.UseRateLimiter();
+
 app.UseAuthorization();
 
 app.MapControllers();
