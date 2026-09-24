@@ -14,6 +14,9 @@ cd D:\CityYouth\src\CityYouth.Api
 dotnet user-secrets set "Supabase:Url" "https://<your-ref>.supabase.co"
 dotnet user-secrets set "Supabase:AnonKey" "<anon public key>"
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=aws-0-<region>.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.<your-ref>;Password=<db-password>;SSL Mode=Require;Trust Server Certificate=true"
+dotnet user-secrets set "Cloudinary:Name" "<cloud name>"
+dotnet user-secrets set "Cloudinary:ApiKey" "<api key>"
+dotnet user-secrets set "Cloudinary:ApiSecret" "<api secret>"
 ```
 
 Use the **session-mode pooler** (port `5432`). No `Supabase:ServiceKey`:
@@ -66,7 +69,7 @@ code stays type-safe.
 | Leaders | `GET /api/leaders` (visible), `GET /api/leaders/all` (auth), `GET /api/leaders/{id}`, CRUD (`Admin`) |
 | Settings | `GET /api/settings`, `PUT /api/settings` (`Admin`) |
 | Categories | `GET /api/categories` (fixed list) |
-| Uploads | `POST /api/uploads` multipart (`bucket`, `file`) → public URL (auth, caller JWT forwarded to storage) |
+| Uploads | `POST /api/uploads` multipart (`bucket`, `file`) → Cloudinary URL (auth, signed server-side) |
 | Users | `GET /api/users?search&page&pageSize`, `PUT /api/users/{id}/role` (`Admin`) |
 
 Status workflow is `draft → published → archived` with domain guards

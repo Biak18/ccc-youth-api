@@ -38,11 +38,9 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.Add("apikey", supabaseAnonKey);
         });
 
-        _ = services.AddHttpClient<IStorageService, SupabaseStorageService>(client =>
-        {
-            client.BaseAddress = new Uri($"{supabaseUrl}/");
-            client.DefaultRequestHeaders.Add("apikey", supabaseAnonKey);
-        });
+        // Media lives on Cloudinary (signed server-side). No default headers:
+        // every upload is authenticated per-request by its signature.
+        _ = services.AddHttpClient<IStorageService, CloudinaryStorageService>();
 
         return services;
     }
