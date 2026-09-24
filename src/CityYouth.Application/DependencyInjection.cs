@@ -1,7 +1,7 @@
-using CityYouth.Application.Common;
+using System.Reflection;
+using CityYouth.Application.Common.Behaviors;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
-using System.Reflection;
 
 namespace CityYouth.Application;
 
@@ -11,13 +11,13 @@ public static class DependencyInjection
     {
         var assembly = Assembly.GetExecutingAssembly();
 
-        services.AddMediatR(cfg =>
+        _ = services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(assembly);
             cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
         });
 
-        services.AddValidatorsFromAssembly(assembly);
+        _ = services.AddValidatorsFromAssembly(assembly);
 
         return services;
     }

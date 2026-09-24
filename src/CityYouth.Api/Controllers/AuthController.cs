@@ -1,6 +1,4 @@
-using CityYouth.Application.Features.Auth.GetMe;
-using CityYouth.Application.Features.Auth.Login;
-using CityYouth.Application.Features.Auth.Refresh;
+using CityYouth.Application.Features.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,36 +6,63 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace CityYouth.Api.Controllers;
 
-[Route("api/auth")]
 [ApiController]
-[EnableRateLimiting("api")]
-public class AuthController(ISender sender) : ControllerBase
+[Route("api/[controller]")]
+[EnableRateLimiting("auth")]
+public sealed class AuthController(ISender sender) : ControllerBase
 {
-    /// <summary>Exchange email + password for a Supabase access token.</summary>
     [HttpPost("login")]
     [AllowAnonymous]
-    [EnableRateLimiting("auth")]
-    public async Task<IActionResult> Login(LoginCommand command, CancellationToken ct)
+    public async Task<IActionResult> Login(
+        [FromBody] LoginRequest request,
+        CancellationToken cancellationToken)
     {
-        var result = await sender.Send(command, ct);
+        var result = await sender.Send(
+            new LoginCommand(request.Email, request.Password),
+            cancellationToken);
+
         return Ok(result);
     }
 
-    /// <summary>
-    /// Rotate an expired session. Returns a new access token AND a new
-    /// refresh token — replace both stored values.
-    /// </summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
-    public async Task<IActionResult> Refresh(RefreshCommand command, CancellationToken ct)
+    public async Task<IActionResult> Refresh(
+        [FromBody] RefreshRequest request,
+        CancellationToken cancellationToken)
     {
-        var result = await sender.Send(command, ct);
+        var result = await sender.Send(
+            new RefreshTokenCommand(request.RefreshToken),
+            cancellationToken);
+
         return Ok(result);
     }
 
-    /// <summary>Caller id/email from the token plus role from profiles.</summary>
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
+    {
+        var authorization = Request.Headers.Authorization.ToString();
+        if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return Unauthorized();
+        }
+
+        await sender.Send(
+            new LogoutCommand(authorization["Bearer ".Length..].Trim()),
+            cancellationToken);
+
+        return NoContent();
+    }
+
     [HttpGet("me")]
     [Authorize]
-    public async Task<IActionResult> Me(CancellationToken ct) =>
-        Ok(await sender.Send(new GetMeQuery(), ct));
+    public async Task<IActionResult> Me(CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetMeQuery(), cancellationToken);
+        return Ok(result);
+    }
 }
+
+public sealed record LoginRequest(string Email, string Password);
+
+public sealed record RefreshRequest(string RefreshToken);

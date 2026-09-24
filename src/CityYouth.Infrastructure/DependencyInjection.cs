@@ -1,6 +1,8 @@
 using CityYouth.Application.Abstractions;
-using CityYouth.Infrastructure.Auth;
-using CityYouth.Infrastructure.Supabase;
+using CityYouth.Infrastructure.Authentication;
+using CityYouth.Infrastructure.Persistence;
+using CityYouth.Infrastructure.Storage;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -9,17 +11,39 @@ namespace CityYouth.Infrastructure;
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
-        this IServiceCollection services, IConfiguration configuration)
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        var url = configuration["Supabase:Url"]?.TrimEnd('/')
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException(
+                "Connection string 'DefaultConnection' was not found in configuration.");
+
+        _ = services.AddDbContext<AppDbContext>(options =>
+            options.UseNpgsql(connectionString));
+
+        _ = services.AddScoped<IApplicationDbContext>(provider =>
+            provider.GetRequiredService<AppDbContext>());
+
+        var supabaseUrl = configuration["Supabase:Url"]?.TrimEnd('/')
             ?? throw new InvalidOperationException("Supabase:Url is required.");
 
-        services.AddHttpClient("supabase", client =>
+        var supabaseAnonKey = configuration["Supabase:AnonKey"]
+            ?? throw new InvalidOperationException("Supabase:AnonKey is required.");
+
+        // No service-role key: auth uses the anon key and uploads forward the
+        // caller's own JWT, so Supabase storage RLS (staff-only) still applies.
+        _ = services.AddHttpClient<IAuthClient, SupabaseAuthClient>(client =>
         {
-            client.BaseAddress = new Uri(url + "/");
+            client.BaseAddress = new Uri($"{supabaseUrl}/auth/v1/");
+            client.DefaultRequestHeaders.Add("apikey", supabaseAnonKey);
         });
-        services.AddScoped<ISupabaseGateway, SupabaseGateway>();
-        services.AddScoped<IRoleChecker, RoleChecker>();
+
+        _ = services.AddHttpClient<IStorageService, SupabaseStorageService>(client =>
+        {
+            client.BaseAddress = new Uri($"{supabaseUrl}/");
+            client.DefaultRequestHeaders.Add("apikey", supabaseAnonKey);
+        });
+
         return services;
     }
 }

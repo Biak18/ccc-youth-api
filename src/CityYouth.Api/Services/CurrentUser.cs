@@ -3,17 +3,20 @@ using CityYouth.Application.Abstractions;
 
 namespace CityYouth.Api.Services;
 
-/// <summary>Caller identity from the validated Supabase access token.</summary>
-public sealed class CurrentUser(IHttpContextAccessor accessor) : ICurrentUser
+public sealed class CurrentUser(IHttpContextAccessor httpContextAccessor) : ICurrentUser
 {
-    public string? UserId =>
-        accessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? accessor.HttpContext?.User.FindFirstValue("sub");
-
-    public string? Email =>
-        accessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email)
-        ?? accessor.HttpContext?.User.FindFirstValue("email");
+    public Guid? UserId
+    {
+        get
+        {
+            var value = httpContextAccessor.HttpContext?.User?.FindFirstValue("sub");
+            return Guid.TryParse(value, out var userId) ? userId : null;
+        }
+    }
 
     public bool IsAuthenticated =>
-        accessor.HttpContext?.User.Identity?.IsAuthenticated == true;
+        httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true;
+
+    public string? Email =>
+        httpContextAccessor.HttpContext?.User?.FindFirstValue("email");
 }

@@ -1,35 +1,56 @@
 using CityYouth.Domain.Common;
+using CityYouth.Domain.Exceptions;
 
 namespace CityYouth.Domain.Entities;
 
-public sealed class Activity
+public class Activity
 {
     public Guid Id { get; set; }
+
     public string Title { get; set; } = string.Empty;
+
     public string Slug { get; set; } = string.Empty;
+
     public string? Description { get; set; }
+
     public DateOnly ActivityDate { get; set; }
-    public string? Category { get; set; }
+
     public string? Location { get; set; }
+
     public string? CoverImageUrl { get; set; }
-    public string Status { get; set; } = ContentStatuses.Draft;
-    public string? CreatedBy { get; set; }
-    public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
 
-    public static Activity Create(string title, DateOnly date, string? createdBy) => new()
+    public ContentStatus Status { get; set; } = ContentStatus.Draft;
+
+    public string? Category { get; set; }
+
+    public Guid? CreatedBy { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime UpdatedAt { get; set; }
+
+    public ICollection<Media> Media { get; set; } = new List<Media>();
+
+    public void Publish()
     {
-        Id = Guid.NewGuid(),
-        Title = title.Trim(),
-        Slug = Slugs.Generate(title),
-        ActivityDate = date,
-        Status = ContentStatuses.Draft,
-        CreatedBy = createdBy,
-        CreatedAt = DateTimeOffset.UtcNow,
-        UpdatedAt = DateTimeOffset.UtcNow,
-    };
+        if (Status == ContentStatus.Archived)
+        {
+            throw new DomainException("Archived activities cannot be republished. Create a new activity instead.");
+        }
 
-    public void SetStatus(string status) => Status = ContentStatuses.RequireValid(status);
+        Status = ContentStatus.Published;
+        UpdatedAt = DateTime.UtcNow;
+    }
 
-    public void Touch() => UpdatedAt = DateTimeOffset.UtcNow;
+    public void Archive()
+    {
+        Status = ContentStatus.Archived;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Draft()
+    {
+        Status = ContentStatus.Draft;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

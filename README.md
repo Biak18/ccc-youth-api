@@ -1,80 +1,83 @@
 # CityYouth API
 
-ASP.NET Core 10 Web API for the Christian City Church Youth website.
-Clean Architecture + MediatR (vertical slices), talking to Supabase over
-HTTPS — **no database password, no Npgsql, no local user store**.
+ASP.NET Core 10 Web API for the CCC Youth website (React frontend:
+https://github.com/Biak18/ccc-youth).
 
-## How it works
+Clean Architecture + MediatR (vertical slices) + EF Core (Npgsql) straight
+against the Supabase Postgres database. Same style as DressShop.
 
-- **Identity** = Supabase Auth. The site logs in as usual; the API validates
-  that access token (`Authority: {Supabase:Url}/auth/v1`). No ASP.NET Identity.
-- **Reads** go through PostgREST with the anon key, so RLS applies.
-- **Writes** go through PostgREST with the service key (server-side only);
-  the API enforces ownership itself: leaders edit their own content
-  (`created_by`), admins edit everything, leaders/settings/users need the
-  `Admin` policy (role read from the `profiles` table, never from the client).
-- Publishing workflow `draft → published → archived` lives in the Domain
-  layer (`Announcement.Publish()` stamps `PublishedAt`).
-
-## Setup
+## Secrets (3 only — no service-role key)
 
 ```powershell
 cd D:\CityYouth\src\CityYouth.Api
 
-dotnet user-secrets init
-dotnet user-secrets set "Supabase:Url" "https://<ref>.supabase.co"
+dotnet user-secrets set "Supabase:Url" "https://<your-ref>.supabase.co"
 dotnet user-secrets set "Supabase:AnonKey" "<anon public key>"
-dotnet user-secrets set "Supabase:ServiceKey" "<service-role key>"
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=aws-0-<region>.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.<your-ref>;Password=<db-password>;SSL Mode=Require;Trust Server Certificate=true"
+```
 
+Use the **session-mode pooler** (port `5432`). No `Supabase:ServiceKey`:
+auth uses the anon key and uploads forward each caller's own JWT, so
+Supabase storage RLS (staff-only, owner = uploader) still applies.
+
+## Run
+
+```powershell
+cd D:\CityYouth\src\CityYouth.Api
 dotnet run
 ```
 
-Open `http://localhost:5209/scalar` (the browser opens there automatically).
+Open `http://localhost:5029/scalar`. `GET /api/health` needs no secrets;
+`GET /api/health/db` checks the database connection.
 
-## Testing in Scalar
+## Database
 
-1. `POST /api/auth/login` with a leader/admin email + password → copy `access_token`.
-2. Click **Authorize**, paste the raw token (no `Bearer ` prefix).
-3. Try the draft lifecycle: `POST /api/activities` (draft) →
-   `PATCH /api/activities/{id}/status` (published) → `GET /api/activities` →
-   `DELETE /api/activities/{id}`.
-4. `GET /api/auth/me` shows your id, email and role.
+The schema is managed in Supabase (tables already exist) — there are **no
+EF migrations** in this repo. The EF model maps the existing tables/columns
+1:1. `role`/`status` are `text` columns with CHECK constraints in the
+database and rich `UserRole`/`ContentStatus` enums in C#, translated by EF
+value converters — so the API speaks `"draft"`/`"admin"` strings while the
+code stays type-safe.
+
+## Auth model
+
+- Identity = Supabase Auth. `POST /api/auth/login` exchanges email+password
+  for tokens; every other call sends `Authorization: Bearer <access_token>`.
+- Reads are public but status-aware: anonymous callers see `published` only;
+  signed-in leaders additionally see `archived` + their own drafts; admins
+  see everything (optional `?status=` filter).
+- Writes need authentication. Leaders may create content and edit/delete
+  **their own** (`created_by`); admins may edit/delete everything.
+- `Admin` policy (role read from `profiles`, never from the client) gates:
+  leaders CRUD, site settings, users/profiles.
+- No public registration endpoint — users are created in Supabase Auth,
+  then given a `profiles` row + role.
 
 ## Endpoints
 
 | Area | Routes |
 |---|---|
 | Health | `GET /api/health`, `GET /api/health/db` |
-| Auth | `POST /api/auth/login`, `GET /api/auth/me` (no public registration) |
-| Events | `GET /api/events?filter=upcoming\|past\|all`, `GET /api/events/{slug}`, + CRUD (auth) |
-| Activities | `GET /api/activities?status&year&category&limit&offset`, `GET /api/activities/{slug}`, `GET /api/activities/{id}/media`, + CRUD (auth) |
-| Media | `GET /api/media?type&activityId`, + CRUD (auth) |
-| Announcements | `GET /api/announcements`, + CRUD, `PATCH …/status`, `PATCH …/pin` (auth) |
-| Leaders | `GET /api/leaders`, `GET /api/leaders/all` (auth), CRUD (`Admin`) |
-| Settings | `GET /api/settings`, `PUT` (`Admin`) |
+| Auth | `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me` |
+| Events | `GET /api/events?filter=upcoming\|past\|all&status&search&page&pageSize`, `GET /api/events/{id}`, `GET /api/events/slug/{slug}`, `POST`, `PUT /{id}`, `PATCH /{id}/status`, `DELETE /{id}` |
+| Activities | `GET /api/activities?status&year&category&search&page&pageSize`, `GET /api/activities/{id}`, `GET /api/activities/slug/{slug}`, `GET /api/activities/{id}/media`, `POST`, `PUT /{id}`, `PATCH /{id}/status`, `DELETE /{id}` |
+| Media | `GET /api/media?activityId&type&page&pageSize`, `GET /api/media/{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` |
+| Announcements | `GET /api/announcements?status&search&page&pageSize` (pinned first), `GET /api/announcements/{id}`, `GET /api/announcements/slug/{slug}`, `POST`, `PUT /{id}`, `PATCH /{id}/status`, `PATCH /{id}/pin`, `DELETE /{id}` |
+| Leaders | `GET /api/leaders` (visible), `GET /api/leaders/all` (auth), `GET /api/leaders/{id}`, CRUD (`Admin`) |
+| Settings | `GET /api/settings`, `PUT /api/settings` (`Admin`) |
 | Categories | `GET /api/categories` (fixed list) |
-| Uploads | `POST /api/uploads` multipart (`bucket`, `folder`, `file`) → public URL (auth) |
-| Users | `GET /api/users/profiles`, `PUT …/role` (`Admin`) |
+| Uploads | `POST /api/uploads` multipart (`bucket`, `file`) → public URL (auth, caller JWT forwarded to storage) |
+| Users | `GET /api/users?search&page&pageSize`, `PUT /api/users/{id}/role` (`Admin`) |
 
-## Rate limits (§49)
-
-- `auth` — 5 login attempts / minute / IP (brute-force cover).
-- `api` — 60 requests / minute, per user when logged in, per IP otherwise.
-  Exceeding either returns `429`.
+Status workflow is `draft → published → archived` with domain guards
+(archived items can't be republished). Validation failures → `400`, missing
+→ `404`, other people's content → `403`.
 
 ## Projects
 
 ```text
-CityYouth.Api            controllers, auth, middleware, composition
-CityYouth.Application    features (MediatR), validation, abstractions
-CityYouth.Domain         entities, publishing rules, exceptions
-CityYouth.Infrastructure Supabase gateway, storage, roles
+CityYouth.Api            controllers, Supabase JWT auth, Admin policy, middleware, CORS, rate limits
+CityYouth.Application    features (MediatR), FluentValidation, abstractions, role/ownership checks
+CityYouth.Domain         entities, ContentStatus/UserRole enums, publishing rules, exceptions
+CityYouth.Infrastructure EF Core (AppDbContext, configs), Supabase auth client, storage (JWT-forwarded)
 ```
-
-## Notes
-
-- Behind a VPN that flaps, Supabase failures surface as clean `502`s
-  (`SupabaseUnreachableException`); validation → `400`, missing → `404`,
-  other people's content → `403`. Nothing leaks internals.
-- Uploads forward the original bytes; the web client's WebP compression
-  does not run here — compress client-side if size matters.

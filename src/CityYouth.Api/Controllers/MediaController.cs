@@ -1,5 +1,4 @@
-using CityYouth.Application.Features.Media.ListMedia;
-using CityYouth.Application.Features.Media.ListMedia;
+using CityYouth.Application.Features.Media;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,43 +6,85 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace CityYouth.Api.Controllers;
 
-[Route("api/media")]
 [ApiController]
+[Route("api/[controller]")]
 [EnableRateLimiting("api")]
-public class MediaController(ISender sender) : ControllerBase
+public sealed class MediaController(ISender sender) : ControllerBase
 {
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> List(
-        [FromQuery] Guid? activityId = null, [FromQuery] string? type = null,
-        [FromQuery] int limit = 100, CancellationToken ct = default) =>
-        Ok(await sender.Send(new ListMediaQuery(activityId, type, limit), ct));
+        [FromQuery] Guid? activityId,
+        [FromQuery] string? type,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await sender.Send(
+            new ListMediaQuery(activityId, type, page, pageSize),
+            cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetMediaByIdQuery(id), cancellationToken);
+        return Ok(result);
+    }
 
     [HttpPost]
     [Authorize]
     public async Task<IActionResult> Create(
-        CreateMediaCommand command, CancellationToken ct)
+        [FromBody] CreateMediaRequest request,
+        CancellationToken cancellationToken)
     {
-        var item = await sender.Send(command, ct);
-        return CreatedAtAction(nameof(Get), new { id = item.Id }, item);
-    }
+        var result = await sender.Send(
+            new CreateMediaCommand(
+                request.ActivityId, request.Type, request.Source, request.Url,
+                request.ThumbnailUrl, request.Title, request.Description, request.SortOrder),
+            cancellationToken);
 
-    [HttpGet("{id:guid}")]
-    [Authorize]
-    public async Task<IActionResult> Get(Guid id, CancellationToken ct) =>
-        Ok(await sender.Send(new GetMediaQuery(id), ct));
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+    }
 
     [HttpPut("{id:guid}")]
     [Authorize]
     public async Task<IActionResult> Update(
-        Guid id, UpdateMediaCommand command, CancellationToken ct) =>
-        Ok(await sender.Send(command with { Id = id }, ct));
+        Guid id,
+        [FromBody] UpdateMediaRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new UpdateMediaCommand(id, request.ThumbnailUrl, request.Title, request.Description, request.SortOrder),
+            cancellationToken);
+
+        return Ok(result);
+    }
 
     [HttpDelete("{id:guid}")]
     [Authorize]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        await sender.Send(new DeleteMediaCommand(id), ct);
+        await sender.Send(new DeleteMediaCommand(id), cancellationToken);
         return NoContent();
     }
 }
+
+public sealed record CreateMediaRequest(
+    Guid? ActivityId,
+    string Type,
+    string Source,
+    string Url,
+    string? ThumbnailUrl,
+    string? Title,
+    string? Description,
+    int SortOrder = 0);
+
+public sealed record UpdateMediaRequest(
+    string? ThumbnailUrl,
+    string? Title,
+    string? Description,
+    int SortOrder = 0);

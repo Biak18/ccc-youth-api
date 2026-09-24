@@ -1,28 +1,34 @@
-using CityYouth.Application.Abstractions;
-using CityYouth.Domain.Common;
+using System.Text.RegularExpressions;
 
 namespace CityYouth.Application.Common;
 
-public static class SlugHelper
+public static partial class SlugHelper
 {
-    private sealed record IdRow(Guid Id);
-
-    public static async Task<string> UniqueAsync(
-        ISupabaseGateway db, string table, string baseSlug, Guid? exclude = null,
-        CancellationToken ct = default)
+    public static string Slugify(string value)
     {
-        var slug = baseSlug;
-        for (var i = 2; ; i++)
-        {
-            var existing = await db.SingleAsync<IdRow>(
-                table, $"select=id&slug=eq.{Uri.EscapeDataString(slug)}", ct: ct);
-            if (existing is null
-                || (exclude is { } id && existing.Id == id))
-                return slug;
-            slug = $"{baseSlug}-{i}";
-        }
+        var slug = value.Trim().ToLowerInvariant();
+        slug = Regex.Replace(slug, @"[^a-z0-9\s-]", string.Empty);
+        slug = Regex.Replace(slug, @"[\s_]+", "-");
+        slug = Regex.Replace(slug, @"-+", "-");
+        return slug.Trim('-');
     }
 
-    public static string FromTitle(string title, string? explicitSlug) =>
-        string.IsNullOrWhiteSpace(explicitSlug) ? Slugs.Generate(title) : explicitSlug.Trim();
+    public static string EnsureUnique(string baseSlug, Func<string, bool> exists)
+    {
+        if (!exists(baseSlug))
+        {
+            return baseSlug;
+        }
+
+        for (var i = 2; i < 1000; i++)
+        {
+            var candidate = $"{baseSlug}-{i}";
+            if (!exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return $"{baseSlug}-{Guid.NewGuid():N}";
+    }
 }
