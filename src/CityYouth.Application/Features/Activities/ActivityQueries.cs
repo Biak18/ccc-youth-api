@@ -45,7 +45,12 @@ public sealed class ListActivitiesQueryHandler(
                     a.CreatedBy == userId);
             }
         }
-        else if (ContentStatusExtensions.TryParseApiString(request.Status, out var filterStatus))
+        else
+        {
+            // Admins without a status filter see everything.
+        }
+
+        if (ContentStatusExtensions.TryParseApiString(request.Status, out var filterStatus))
         {
             query = query.Where(a => a.Status == filterStatus);
         }
